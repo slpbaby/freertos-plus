@@ -27,12 +27,45 @@ void usage(const char * binname) {
 void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * prefix) {
     char fullpath[1024];
     char buf[16 * 1024];
+    char *ptr;
     struct dirent * ent;
     DIR * rec_dirp;
     uint32_t cur_hash = hash_djb2((const uint8_t *) curpath, hash_init);
     uint32_t size, w, hash;
     uint8_t b;
     FILE * infile;
+
+    /* Writing directory description (dir_name hash, 
+       size of filename under dir, filename under dir) */
+    strcpy(fullpath, prefix);
+    strcat(fullpath, "/");
+    strcat(fullpath, curpath);
+    rec_dirp = opendir(fullpath);
+    buf[0] = '\0';
+    while ((ent = readdir(rec_dirp))) {
+        if (strcmp(ent->d_name, ".") == 0)
+            continue;
+        if (strcmp(ent->d_name, "..") == 0)
+            continue;
+        strcat(buf, ent->d_name);
+        strcat(buf, ";;");
+    }
+    b = (cur_hash >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
+    b = (cur_hash >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
+    b = (cur_hash >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
+    b = (cur_hash >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+    size = strlen(buf);
+    b = (size >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
+    b = (size >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
+    b = (size >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
+    b = (size >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+    ptr = buf;
+    while (size) {
+        w = size > 16 * 1024 ? 16 * 1024 : size;
+        fwrite(ptr, 1, w, outfile);
+        ptr += w;
+        size -= w;
+    }
 
     while ((ent = readdir(dirp))) {
         strcpy(fullpath, prefix);

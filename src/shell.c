@@ -60,7 +60,39 @@ int parse_command(char *str, char *argv[]){
 }
 
 void ls_command(int n, char *argv[]){
+	char buf[128], *sptr;
+	int fd;
+	if(n==1){
+		fio_printf(2, "\r\nUsage: ls <directory>\\\r\n");
+		return;
+	}
 
+	strcpy(buf, argv[1]);
+	if (buf[strlen(buf)-1] != '/')
+		strcat(buf, "/");
+
+	if((fd=fs_open(buf, 0, O_RDONLY))==OPENFAIL) {
+		fio_printf(2, "\r\n%s no such directory.\r\n", argv[1]);
+		return;
+	}
+
+	fio_printf(1, "\r\n");
+
+	buf[0] = '\0';
+	int count;
+	while((count=fio_read(fd, buf, sizeof(buf)))>0){
+		sptr = buf;
+		while((sptr=strchr(sptr, ';'))) {
+			*(sptr++) = '\r';
+			*(sptr++) = '\n';
+		}
+		fio_write(1, buf, count);
+	}
+
+	fio_printf(1, "\r\n");
+
+	fio_close(fd);
+	return;
 }
 
 int filedump(const char *filename){
@@ -77,6 +109,8 @@ int filedump(const char *filename){
 	while((count=fio_read(fd, buf, sizeof(buf)))>0){
 		fio_write(1, buf, count);
 	}
+
+	fio_printf(1, "\r\n");
 
 	fio_close(fd);
 	return 1;
